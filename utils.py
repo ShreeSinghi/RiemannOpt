@@ -172,7 +172,7 @@ class CustomBatchSampler(Sampler):
         self.indexss = indexss
 
     def __iter__(self):
-        for image_paths, indexs in zip(self.image_pathss, indexss):
+        for image_paths, indexs in zip(self.image_pathss, self.indexss):
             yield zip(image_paths, indexs)
 
     def __len__(self):

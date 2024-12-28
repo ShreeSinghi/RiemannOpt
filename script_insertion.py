@@ -8,36 +8,10 @@ import gc
 from tqdm import tqdm
 
 import torch
-from utils import load_transform, load_model, compute_outputs
 from metrics import insertion_score
-from torch.utils.data import DataLoader, Sampler, Dataset
+from utils import load_transform, load_model
 
 cudnn.benchmark = True
-
-import psutil
-
-class CustomDataset(Dataset):
-    def __init__(self, transform):
-        self.transform = transform
-
-    def __len__(self):
-        return len(self.image_paths)
-
-    def __getitem__(self, batch):
-        image_path, index = batch
-        return self.transform(Image.open(image_path).convert("RGB")), index
-
-class CustomBatchSampler(Sampler):
-    def __init__(self, image_pathss, indexss):
-        self.image_pathss = image_pathss
-        self.indexss = indexss
-
-    def __iter__(self):
-        for image_paths, indexs in zip(self.image_pathss, self.indexss):
-            yield zip(image_paths, indexs)
-
-    def __len__(self):
-        return len(self.img_path_list)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataroot', type=str, required=True, help='path to dataset')

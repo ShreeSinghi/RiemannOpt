@@ -5,8 +5,7 @@ import json
 from tqdm import tqdm
 import gc
 
-results_dir = os.path.join(os.getcwd(), "results_completeness")
-os.makedirs(results_dir, exist_ok=True)
+os.makedirs("results", exist_ok=True)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -49,11 +48,8 @@ if __name__ == "__main__":
         gc.collect()
 
     completeness_metric = sum_absolute_differences / sum_absolute_output_diff
-
-    os.makedirs(os.path.join(results_dir, "metrics"), exist_ok=True)
     
-    with open(os.path.join(results_dir, "metrics", f"completeness_{opt.model}_{opt.method}_{opt.n_steps}.txt"), 'w') as file:
+    with open(os.path.join("results", f"completeness_{opt.model}_{opt.method}_{opt.n_steps}.txt"), 'w') as file:
         file.write(f"COMPLETENESS METRIC: {completeness_metric:.6f}\n")
 
-    print(f"Results saved in {os.path.join(results_dir, 'metrics')}")
     print(f"Completeness Metric: {completeness_metric:.6f}")

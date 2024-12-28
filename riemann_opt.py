@@ -15,6 +15,7 @@ from PIL import Image
 import gc
 from tqdm import tqdm
 import os
+import argparse
 from utils import load_transform, load_model, CustomDataset, CustomBatchSampler
 
 cudnn.benchmark = True
@@ -69,7 +70,6 @@ class IntegratedGradients:
         return path_images
 
     def saliency(self, images, class_idxs, n_steps, compute_at=None,compute_batchSize=128):
-
         if compute_at is None:
             compute_at = [n_steps]
 
@@ -294,37 +294,53 @@ class GIG:
                     attr_all[i] += (x - x_old) * grad_actual
 
         return torch.from_numpy(np.abs(integrand_all[: , 1:] - integrand_all[:, :-1]).sum((2,3,4)) * steps**2)
-    
 
-model, transform = load_model("inceptionv3"), load_transform("inceptionv3")
-integrator = BlurIG(model, transform)
+parser = argparse.ArgumentParser()
+parser.add_argument('--dataroot', type=str, required=True, help='path to dataset')
+parser.add_argument('--model', type=str, required=True, help='model name')
+parser.add_argument('--method', type=str, required=True, help='method name')
+parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
+parser.add_argument('--resume_epoch', type=int, default=0, help='input batch size')
+parser.add_argument('--n_steps', type=int, default=128, help='number of steps')
+parser.add_argument('--class_cluster', type=int, default=1, help='number of classes to compute at one go')
 
-with open(os.path.join("/scratch/shree_s.iitr/imagenet", f"inceptionv3_predictions.json"), 'r') as file:
+opt = parser.parse_args()
+batchSize = opt.batchSize
+CLASS_CLUSTER = opt.class_cluster
+
+model, transform = load_model(opt.model), load_transform(opt.model)
+
+if opt.method == "ig":
+    integrator = IntegratedGradients(model, transform)
+if opt.method == "blurig":
+    integrator = BlurIG(model, transform)
+if opt.method == "gig":
+    integrator = GIG(model, transform)
+
+with open(os.path.join(opt.dataroot, f"{opt.model}_predictions.json"), 'r') as file:
     class_file_dict = json.load(file) # not really a dict, its a list
-
-CLASS_CLUSTER = 4
 
 image_pathss = []
 indexss = []
-for i in range(0, 1000, CLASS_CLUSTER):
+for i in range(opt.resume_epoch, 1000, CLASS_CLUSTER):
     indexs = []
     image_paths=[]
     for class_idx in range(i, i+CLASS_CLUSTER):
-        image_paths.extend([os.path.join("/scratch/shree_s.iitr/imagenet", "val/images", file ) for file in class_file_dict[class_idx]])
-        indexs += [class_idx] * len(class_file_dict[class_idx])
+        image_paths.append(os.path.join(opt.dataroot, "val/images", class_file_dict[class_idx][0])
+        indexs.append(class_idx)
     image_pathss.append(image_paths)
     indexss.append(indexs)
-    
+
 dataset = CustomDataset(transform=transform)
 batch_sampler = CustomBatchSampler(image_pathss, indexss)
-dataloader = DataLoader(dataset, batch_sampler=batch_sampler)
+dataloader = DataLoader(dataset, batch_sampler=batch_sampler, num_workers=4)
 
 outputs = []
 for i, (images, indexs) in tqdm(zip(range(0, 1000, CLASS_CLUSTER), dataloader), total=1000//CLASS_CLUSTER):
     print("Processing classes", i, "to", i+CLASS_CLUSTER)
     
-    output = integrator.saliency(images, indexs, 128, None, 128)
+    output = integrator.saliency(images, indexs, opt.n_steps, None, opt.batchSize)
     outputs.append(output)
 
 outputs = torch.vstack(outputs).numpy()
-np.save("magnitude_blurig", outputs)
+np.save(f"magnitude_{opt.method}", outputs)

@@ -17,10 +17,6 @@ from newgig import NewGIG
 from newig import NewIG
 from utils import load_transform, load_model, CustomDataset, CustomBatchSampler
 cudnn.benchmark = True
-
-
-def split_given_size(a, size):
-    return np.split(a, np.arange(size,len(a),size))
       
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataroot', type=str, required=True, help='path to dataset')
@@ -65,11 +61,9 @@ if opt.method == "newgig":
 image_pathss = []
 indexss = []
 for i in range(opt.resume_epoch, 1000, CLASS_CLUSTER):
-    
     indexs = []
     image_paths=[]
     for class_idx in range(i, i+CLASS_CLUSTER):
-        
         image_paths.extend([os.path.join(opt.dataroot, "val/images", file ) for file in class_file_dict[class_idx]])
         indexs += [class_idx] * len(class_file_dict[class_idx])
     
@@ -78,7 +72,6 @@ for i in range(opt.resume_epoch, 1000, CLASS_CLUSTER):
 
 dataset = CustomDataset(transform=transform)
 batch_sampler = CustomBatchSampler(image_pathss, indexss)
-
 dataloader = DataLoader(dataset, batch_sampler=batch_sampler, num_workers=4)
 
 for i, (images, indexs) in zip(tqdm(range(opt.resume_epoch, 1000, CLASS_CLUSTER)), dataloader):
